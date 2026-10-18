@@ -13,6 +13,7 @@ import { fetchRemoteYaml } from '@/modules/common/remoteConfig'
 import nunjucksEnv from '../modules/common/nunjucksEnv.js'
 import { onMounted, ref, shallowRef } from 'vue'
 import defaultActiveStates from '../../public/config/active-states.yml'
+import { LightActions } from '@/modules/lights/lightActions'
 
 let entityConfigFactory
 const svgUtils = new SvgUtils()
@@ -78,6 +79,19 @@ const renderGeneration = new Map()
 
 const activeStates = ref(defaultActiveStates)
 
+// Fork: the Light / Brightness / Temperature / Colour actions live in their own
+// module; every event for those action UUIDs is handed to it and ends there.
+const lights = new LightActions(
+  () => $SD.value,
+  () => $HA.value,
+  (svg) => svgUtils.svgToImageDataUri(svg)
+)
+const forLights = (event, message) => {
+  if (!lights.owns(message.action)) return false
+  lights.handle(event, message)
+  return true
+}
+
 const rotationTimeout = {}
 const rotationAmount = {}
 const rotationPercent = {}
@@ -110,14 +124,17 @@ onMounted(async () => {
     })
 
     $SD.value.on('keyDown', (message) => {
+      if (forLights('keyDown', message)) return
       buttonDown(message.context)
     })
 
     $SD.value.on('keyUp', (message) => {
+      if (forLights('keyUp', message)) return
       buttonUp(message.context)
     })
 
     $SD.value.on('willAppear', (message) => {
+      if (forLights('willAppear', message)) return
       let context = message.context
       rotationAmount[context] = 0
       // Keep accumulated rotationPercent across page changes (willAppear fires
@@ -133,6 +150,7 @@ onMounted(async () => {
     })
 
     $SD.value.on('willDisappear', (message) => {
+      if (forLights('willDisappear', message)) return
       let context = message.context
       delete actionSettings.value[context]
       renderGeneration.delete(context)
@@ -140,6 +158,7 @@ onMounted(async () => {
     })
 
     $SD.value.on('dialRotate', (message) => {
+      if (forLights('dialRotate', message)) return
       let context = message.context
       let settings = actionSettings.value[context]
       if (!settings) return
@@ -174,14 +193,17 @@ onMounted(async () => {
     })
 
     $SD.value.on('dialDown', (message) => {
+      if (forLights('dialDown', message)) return
       buttonDown(message.context)
     })
 
     $SD.value.on('dialUp', (message) => {
+      if (forLights('dialUp', message)) return
       buttonUp(message.context)
     })
 
     $SD.value.on('touchTap', (message) => {
+      if (forLights('touchTap', message)) return
       let context = message.context
       let settings = actionSettings.value[context]
       if (!settings) return
@@ -189,6 +211,7 @@ onMounted(async () => {
     })
 
     $SD.value.on('didReceiveSettings', (message) => {
+      if (forLights('didReceiveSettings', message)) return
       let context = message.context
       rotationAmount[context] = 0
       if (rotationPercent[context] === undefined) {
@@ -232,6 +255,7 @@ let reconnectDelayMs = RECONNECT_BASE_DELAY_MS
 
 const onHAConnected = () => {
   reconnectDelayMs = RECONNECT_BASE_DELAY_MS
+  lights.onConnected()
   $HA.value.getStatesDebounced(entityStatesChanged)
   resubscribeEntities()
 }
@@ -255,6 +279,7 @@ function onHAClosed(msg) {
 
 function scheduleReconnect() {
   haEntitySubscription = null
+  lights.onDisconnected()
   showAlert()
   window.clearTimeout(reconnectTimeout)
   reconnectTimeout = window.setTimeout(connectHomeAssistant, reconnectDelayMs)

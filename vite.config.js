@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         pi: 'pi.html',
+        lightpi: 'light-pi.html',
         plugin: 'plugin.html'
       }
     }

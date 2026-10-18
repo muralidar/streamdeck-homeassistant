@@ -50,3 +50,20 @@ grep -rn "jsdelivr\|fetch(\|axios" src               # re-check for new runtime 
 ```
 
 Then build and install as above.
+
+## Fork additions: light controls (branch `lights`)
+
+Four purpose-built actions in the "Home Assistant" category, all in
+`src/modules/lights/` with their own settings panel (`light-pi.html`):
+
+| Action | Where | Behaviour |
+|---|---|---|
+| Light | Key | Press toggles. Icon shows the light's actual colour and brightness; grey when off. |
+| Light brightness | Dial | ±5% per click from the real brightness (below 1% turns off). Press or tap toggles. |
+| Light colour temperature | Dial | ±100 K per click within the bulb's own range. Press or tap toggles. |
+| Light colour | Dial | ±10° hue per click (full saturation when coming from white). Press or tap toggles. |
+
+Each action takes one or more lights; several lights move together and the
+display follows the first. Turns apply locally at once and are sent at most every
+150 ms. `PluginComponent.vue` only gains a few hook lines (`forLights(...)`) so
+upstream merges stay small. Tests: `src/modules/lights/*.test.js`.

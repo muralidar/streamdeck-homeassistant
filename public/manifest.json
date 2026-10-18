@@ -40,6 +40,103 @@
       "SupportedInMultiActions": true,
       "UUID": "de.perdoctus.streamdeck.homeassistant.dual-state-entity"
     }
+,
+    {
+      "Icon": "images/actionImage",
+      "Name": "Light",
+      "Tooltip": "Toggle a light. Shows its colour and brightness.",
+      "PropertyInspectorPath": "light-pi.html",
+      "States": [
+        {
+          "Image": "images/ha-button",
+          "TitleAlignment": "bottom",
+          "FontSize": 9
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "UUID": "de.perdoctus.streamdeck.homeassistant.light",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Icon": "images/actionImage",
+      "Name": "Light brightness",
+      "Tooltip": "Brightness, 5% per click. Press to toggle.",
+      "PropertyInspectorPath": "light-pi.html",
+      "States": [
+        {
+          "Image": "images/ha-button",
+          "TitleAlignment": "bottom",
+          "FontSize": 9
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "UUID": "de.perdoctus.streamdeck.homeassistant.light-brightness",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Brightness, 5% per click",
+          "Push": "Toggle",
+          "Touch": "Toggle"
+        }
+      }
+    },
+    {
+      "Icon": "images/actionImage",
+      "Name": "Light colour temperature",
+      "Tooltip": "Colour temperature, 100 K per click. Press to toggle.",
+      "PropertyInspectorPath": "light-pi.html",
+      "States": [
+        {
+          "Image": "images/ha-button",
+          "TitleAlignment": "bottom",
+          "FontSize": 9
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "UUID": "de.perdoctus.streamdeck.homeassistant.light-temperature",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Colour temperature, 100 K per click",
+          "Push": "Toggle",
+          "Touch": "Toggle"
+        }
+      }
+    },
+    {
+      "Icon": "images/actionImage",
+      "Name": "Light colour",
+      "Tooltip": "Hue, 10\u00b0 per click. Press to toggle.",
+      "PropertyInspectorPath": "light-pi.html",
+      "States": [
+        {
+          "Image": "images/ha-button",
+          "TitleAlignment": "bottom",
+          "FontSize": 9
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "UUID": "de.perdoctus.streamdeck.homeassistant.light-color",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Hue, 10\u00b0 per click",
+          "Push": "Toggle",
+          "Touch": "Toggle"
+        }
+      }
+    }
   ],
   "UUID": "de.perdoctus.streamdeck.homeassistant",
   "Category": "Home Assistant",
