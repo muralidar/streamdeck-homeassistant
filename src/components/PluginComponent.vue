@@ -94,9 +94,10 @@ onMounted(async () => {
         $SD.value.saveGlobalSettings(migratedSettings)
       }
       globalSettings.value = migratedSettings
-      const configUrl =
-        migratedSettings.displayConfiguration?.urlOverride ||
-        migratedSettings.displayConfiguration?.url
+      // Fork: only a URL the user typed in is ever fetched. The default display
+      // configuration is the copy bundled in this build, never upstream's
+      // master branch at runtime (its Nunjucks templates are rendered here).
+      const configUrl = migratedSettings.displayConfiguration?.urlOverride
       entityConfigFactory = new EntityConfigFactory(
         configUrl ? () => fetchRemoteYaml(configUrl) : null
       )
@@ -205,13 +206,7 @@ onMounted(async () => {
 })
 
 async function fetchActiveStates() {
-  try {
-    activeStates.value = await fetchRemoteYaml(
-      'https://cdn.jsdelivr.net/gh/cgiesche/streamdeck-homeassistant@master/public/config/active-states.yml'
-    )
-  } catch (error) {
-    console.log(`Failed to download updated active-states.yml: ${error}`)
-  }
+  // Fork: use the bundled active-states.yml; no runtime download.
 }
 
 function connectHomeAssistant() {

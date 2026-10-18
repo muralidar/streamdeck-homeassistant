@@ -461,7 +461,6 @@ import { ObjectUtils } from '@/modules/common/utils'
 import TypeaheadSelect from '@/components/ui/TypeaheadSelect.vue'
 import PiToggleRow from '@/components/ui/PiToggleRow.vue'
 import axios from 'axios'
-import { fetchRemoteYaml } from '@/modules/common/remoteConfig'
 import { getLogEntries } from '@/modules/common/debugLog'
 
 const manifest = ref(defaultManifest)
@@ -589,12 +588,7 @@ onMounted(() => {
 })
 
 function updateManifest() {
-  console.log('Updating manifest.')
-  fetchRemoteYaml(
-    'https://cdn.jsdelivr.net/gh/cgiesche/streamdeck-homeassistant@master/public/config/manifest.yml'
-  )
-    .then((loadedManifest) => (manifest.value = loadedManifest))
-    .catch((error) => console.log(`Failed to download updated manifest.yml: ${error}`))
+  // Fork: use the bundled manifest.yml; no runtime download.
 }
 
 watch(haConnectionState, (state) => {
