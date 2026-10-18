@@ -19,6 +19,7 @@ import {
   displayColor,
   hsToHex,
   isOn,
+  isUnavailable,
   kelvinPct,
   kelvinRange,
   kelvinToHex,
@@ -72,6 +73,27 @@ export class LightActions {
     this.#getSD = getSD
     this.#getHA = getHA
     this.#svgToImage = svgToImage
+  }
+
+  // Diagnostics go to the Stream Deck plugin log
+  // (~/Library/Logs/ElgatoStreamDeck/de.perdoctus.streamdeck.homeassistant0.log).
+  // Entity ids, states and error text only; never the token or service data.
+  #log(message) {
+    this.#getSD()?.log(`Lights: ${message}`)
+  }
+
+  #alert(context, reason) {
+    const entry = this.#contexts.get(context)
+    this.#log(
+      `alert on ${entry?.kind ?? '?'} [${entry?.settings.entityIds.join(', ') ?? ''}]: ${reason}`
+    )
+    this.#getSD()?.showAlert(context)
+  }
+
+  #describe(state) {
+    if (!state) return 'no state'
+    const a = state.attributes ?? {}
+    return `${state.entity_id}=${state.state} mode=${a.color_mode ?? '-'} modes=${(a.supported_color_modes ?? []).join('/')} brightness=${a.brightness ?? '-'} kelvin=${a.color_temp_kelvin ?? '-'}`
   }
 
   owns(action) {
@@ -146,6 +168,9 @@ export class LightActions {
 
     ha.getStates((states) => {
       for (const s of states) if (ids.includes(s.entity_id)) this.#states.set(s.entity_id, s)
+      for (const id of ids) this.#log(`state ${this.#describe(this.#states.get(id)) || id}`)
+      for (const id of ids)
+        if (!this.#states.has(id)) this.#log(`no such entity in Home Assistant: ${id}`)
       this.#renderAll()
     })
 
@@ -155,10 +180,11 @@ export class LightActions {
         const s = event?.variables?.trigger?.to_state
         if (!s?.entity_id) return
         this.#states.set(s.entity_id, s)
+        this.#log(`changed ${this.#describe(s)}`)
         this.#renderEntity(s.entity_id)
       })
     } catch (e) {
-      console.log(`Light actions: failed to subscribe: ${e}`)
+      this.#log(`failed to subscribe: ${e?.message ?? JSON.stringify(e)}`)
       return
     }
     if (generation !== this.#generation) {
@@ -180,7 +206,8 @@ export class LightActions {
 
   #toggle(context) {
     const entry = this.#contexts.get(context)
-    if (!entry || entry.settings.entityIds.length === 0) return this.#getSD()?.showAlert(context)
+    if (!entry || entry.settings.entityIds.length === 0)
+      return this.#alert(context, 'no light picked')
     const primary = this.#displayState(entry.settings.entityIds[0])
     const turningOn = !isOn(primary)
     this.#setOverride(entry.settings.entityIds, { state: turningOn ? 'on' : 'off' })
@@ -191,9 +218,11 @@ export class LightActions {
     const entry = this.#contexts.get(context)
     if (!entry || ticks === 0) return
     const ids = entry.settings.entityIds
-    if (ids.length === 0) return this.#getSD()?.showAlert(context)
+    if (ids.length === 0) return this.#alert(context, 'no light picked')
     const state = this.#displayState(ids[0])
-    if (!state) return this.#getSD()?.showAlert(context)
+    if (!state) return this.#alert(context, `no state yet for ${ids[0]}`)
+    if (isUnavailable(state))
+      return this.#alert(context, `${ids[0]} is ${state.state} in Home Assistant`)
 
     if (entry.kind === 'brightness') {
       const pct = nextBrightnessPct(brightnessPct(state), ticks)
@@ -205,12 +234,14 @@ export class LightActions {
         this.#call(context, { domain: 'light', service: 'turn_on', data: { brightness_pct: pct } })
       }
     } else if (entry.kind === 'temperature') {
-      if (!supportsColorTemp(state)) return this.#getSD()?.showAlert(context)
+      if (!supportsColorTemp(state))
+        return this.#alert(context, `no color_temp support: ${this.#describe(state)}`)
       const k = nextKelvin(currentKelvin(state), ticks, kelvinRange(state))
       this.#setOverride(ids, { state: 'on', color_mode: 'color_temp', color_temp_kelvin: k })
       this.#call(context, { domain: 'light', service: 'turn_on', data: { color_temp_kelvin: k } })
     } else if (entry.kind === 'color') {
-      if (!supportsColor(state)) return this.#getSD()?.showAlert(context)
+      if (!supportsColor(state))
+        return this.#alert(context, `no colour support: ${this.#describe(state)}`)
       const { h, s } = currentHs(state)
       const hue = nextHue(h, ticks)
       this.#setOverride(ids, { state: 'on', color_mode: 'hs', hs_color: [hue, s], rgb_color: null })
@@ -262,8 +293,10 @@ export class LightActions {
       ids.length === 1 ? ids[0] : ids,
       request.data
     ).catch((e) => {
-      console.error(e)
-      this.#getSD()?.showAlert(context)
+      this.#alert(
+        context,
+        `${request.domain}.${request.service} failed: ${e?.message ?? JSON.stringify(e)}`
+      )
     })
   }
 
@@ -307,7 +340,7 @@ export class LightActions {
 
   #keySvg(entry, state) {
     const on = isOn(state)
-    const color = state ? displayColor(state) : '#5a5a5a'
+    const color = !state ? '#5a5a5a' : isUnavailable(state) ? '#b04a4a' : displayColor(state)
     const pct = brightnessPct(state)
     const path = on ? mdiLightbulb : mdiLightbulbOutline
     const label = this.#title(entry, state)
@@ -317,7 +350,13 @@ export class LightActions {
       ? `<rect x="24" y="262" width="240" height="10" rx="5" fill="#333"/>` +
         `<rect x="24" y="262" width="${Math.max(10, (240 * pct) / 100)}" height="10" rx="5" fill="${color}"/>`
       : ''
-    const status = !state ? (entry.settings.entityIds.length ? '…' : 'Pick a light') : ''
+    const status = !state
+      ? entry.settings.entityIds.length
+        ? '…'
+        : 'Pick a light'
+      : isUnavailable(state)
+        ? 'Unavailable'
+        : ''
     return (
       `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">` +
       `<rect width="${SIZE}" height="${SIZE}" fill="#000"/>` +
@@ -338,6 +377,9 @@ export class LightActions {
         indicator: { value: 0 }
       }
     }
+    if (isUnavailable(state)) {
+      return { title, value: 'Unavailable', indicator: { value: 0, bar_fill_c: '#b04a4a' } }
+    }
     if (entry.kind === 'brightness') {
       const pct = brightnessPct(state)
       return {
@@ -354,7 +396,7 @@ export class LightActions {
       const inTemp = state.attributes?.color_mode === 'color_temp'
       return {
         title,
-        value: !isOn(state) ? `Off · ${k} K` : inTemp ? `${k} K` : `Colour · ${k} K`,
+        value: !isOn(state) ? 'Off' : inTemp ? `${k} K` : 'Colour',
         indicator: { value: kelvinPct(k, range), bar_fill_c: kelvinToHex(k) }
       }
     }

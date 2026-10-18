@@ -19,6 +19,10 @@ function fakeSD() {
     },
     showAlert(context) {
       this.alerts.push(context)
+    },
+    logs: [],
+    log(message) {
+      this.logs.push(message)
     }
   }
 }
@@ -182,6 +186,27 @@ describe('LightActions', () => {
     })
     expect(sd.alerts).toContain('d4')
     expect(ha.calls).toHaveLength(0)
+  })
+
+  it('shows an unavailable light distinctly and logs why a dial alerts', async () => {
+    ha = fakeHA([{ ...study, state: 'unavailable' }])
+    appear('d1', 'brightness')
+    await flush()
+    expect(sd.feedback.at(-1).payload.value).toBe('Unavailable')
+    lights.handle('dialRotate', {
+      context: 'd1',
+      action: LIGHT_ACTIONS.brightness,
+      payload: { ticks: 1 }
+    })
+    expect(ha.calls).toHaveLength(0)
+    expect(sd.alerts).toContain('d1')
+    expect(sd.logs.some((l) => l.includes('light.study_overhead is unavailable'))).toBe(true)
+  })
+
+  it('logs the states it reads, without any token', async () => {
+    appear('k1', 'toggle')
+    await flush()
+    expect(sd.logs.some((l) => l.includes('light.study_overhead=on'))).toBe(true)
   })
 
   it('follows state changes pushed by Home Assistant', async () => {

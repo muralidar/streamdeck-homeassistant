@@ -14,6 +14,11 @@ export function isOn(state) {
   return state?.state === 'on'
 }
 
+/** Home Assistant can't reach the light (or doesn't know its state yet). */
+export function isUnavailable(state) {
+  return state?.state === 'unavailable' || state?.state === 'unknown'
+}
+
 export function supportedModes(state) {
   return state?.attributes?.supported_color_modes ?? []
 }
