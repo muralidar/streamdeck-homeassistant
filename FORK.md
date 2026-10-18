@@ -25,7 +25,7 @@ Not changed: the settings panel loads a font from Google Fonts (privacy, not the
 
 ## Branches
 
-- `reviewed-3.8.4` — the reviewed, patched build. Install from this.
+- `reviewed-3.8.4` — the reviewed, patched build, including the light controls. Install from this.
 - `upstream` remote — cgiesche's repo.
 
 ## Build and install
