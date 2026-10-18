@@ -118,6 +118,32 @@ export class Homeassistant {
     }
   }
 
+  // Fork: the two methods below work with a non-admin user's token. HA allows
+  // `call_service` and `subscribe_events` (for state_changed) for any user,
+  // whereas `execute_script` and `subscribe_trigger`, used by callService and
+  // subscribeEntitiesChanged, are admin-only and return "Unauthorized".
+  callServiceAsUser(domain, service, entityIds, serviceData = {}) {
+    if (!this._connection) {
+      return Promise.reject(new Error('Not connected to Home Assistant'))
+    }
+    return this._connection.sendMessagePromise({
+      type: 'call_service',
+      domain,
+      service,
+      service_data: serviceData || {},
+      target: { entity_id: entityIds }
+    })
+  }
+
+  async subscribeStateChanges(entityIds, callback) {
+    if (!this._connection) return null
+    const wanted = new Set(entityIds)
+    return this._connection.subscribeEvents((event) => {
+      const newState = event?.data?.new_state
+      if (newState && wanted.has(newState.entity_id)) callback(newState)
+    }, 'state_changed')
+  }
+
   callService(domain, service, entity_id = null, serviceData = {}) {
     if (!this._connection) {
       return Promise.reject(new Error('Not connected to Home Assistant'))

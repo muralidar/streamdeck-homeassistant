@@ -34,13 +34,14 @@ function fakeHA(states) {
     getStates(cb) {
       cb(states)
     },
-    async subscribeEntitiesChanged(ids, cb) {
+    async subscribeStateChanges(ids, cb) {
       this.subscribed = { ids, cb }
       return async () => {}
     },
-    callService(domain, service, target, data) {
+    fail: null,
+    callServiceAsUser(domain, service, target, data) {
       this.calls.push({ domain, service, target, data })
-      return Promise.resolve()
+      return this.fail ? Promise.reject(this.fail) : Promise.resolve()
     }
   }
 }
@@ -209,14 +210,25 @@ describe('LightActions', () => {
     expect(sd.logs.some((l) => l.includes('light.study_overhead=on'))).toBe(true)
   })
 
+  it('undoes the instant display change when Home Assistant refuses the call', async () => {
+    ha.fail = { code: 'unauthorized', message: 'Unauthorized' }
+    appear('k1', 'toggle')
+    await flush()
+    const before = sd.images.length
+    lights.handle('keyUp', { context: 'k1', action: LIGHT_ACTIONS.toggle })
+    await flush()
+    await flush()
+    const frames = sd.images.slice(before).map((f) => f.image)
+    expect(frames.some((img) => !img.includes('opacity="0.18"'))).toBe(true) // shown off at once
+    expect(frames.at(-1)).toContain('opacity="0.18"') // back to the real state (on)
+    expect(sd.alerts).toContain('k1')
+    expect(sd.logs.some((l) => l.includes('light.toggle failed: Unauthorized'))).toBe(true)
+  })
+
   it('follows state changes pushed by Home Assistant', async () => {
     appear('d1', 'brightness')
     await flush()
-    ha.subscribed.cb({
-      variables: {
-        trigger: { to_state: { ...study, attributes: { ...study.attributes, brightness: 255 } } }
-      }
-    })
+    ha.subscribed.cb({ ...study, attributes: { ...study.attributes, brightness: 255 } })
     expect(sd.feedback.at(-1).payload.value).toBe('100%')
   })
 })

@@ -176,8 +176,7 @@ export class LightActions {
 
     let unsub = null
     try {
-      unsub = await ha.subscribeEntitiesChanged(ids, (event) => {
-        const s = event?.variables?.trigger?.to_state
+      unsub = await ha.subscribeStateChanges(ids, (s) => {
         if (!s?.entity_id) return
         this.#states.set(s.entity_id, s)
         this.#log(`changed ${this.#describe(s)}`)
@@ -257,6 +256,15 @@ export class LightActions {
       this.#overrides.set(id, { ...base, ...attrs, until })
       this.#renderEntity(id)
     }
+    // Once the override lapses, show what Home Assistant last reported.
+    setTimeout(() => ids.forEach((id) => this.#renderEntity(id)), OVERRIDE_MS + 50)
+  }
+
+  #clearOverride(ids) {
+    for (const id of ids) {
+      this.#overrides.delete(id)
+      this.#renderEntity(id)
+    }
   }
 
   // Sends now if nothing is in flight for this context, otherwise keeps only the
@@ -287,12 +295,14 @@ export class LightActions {
     const ha = this.#getHA()
     if (!request || !entry || !ha) return
     const ids = entry.settings.entityIds
-    ha.callService(
+    ha.callServiceAsUser(
       request.domain,
       request.service,
       ids.length === 1 ? ids[0] : ids,
       request.data
     ).catch((e) => {
+      // Undo the instant display change so the key shows the light's real state.
+      this.#clearOverride(ids)
       this.#alert(
         context,
         `${request.domain}.${request.service} failed: ${e?.message ?? JSON.stringify(e)}`
