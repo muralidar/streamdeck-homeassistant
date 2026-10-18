@@ -108,9 +108,8 @@ onMounted(async () => {
         $SD.value.saveGlobalSettings(migratedSettings)
       }
       globalSettings.value = migratedSettings
-      // Fork: only a URL the user typed in is ever fetched. The default display
-      // configuration is the copy bundled in this build, never upstream's
-      // master branch at runtime (its Nunjucks templates are rendered here).
+      // Fork: only a URL the user typed in is fetched; otherwise the display
+      // configuration bundled in this build is used.
       const configUrl = migratedSettings.displayConfiguration?.urlOverride
       entityConfigFactory = new EntityConfigFactory(
         configUrl ? () => fetchRemoteYaml(configUrl) : null

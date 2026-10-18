@@ -9,17 +9,14 @@ Reviewed at tag `3.8.4` (2026-10-17). The access token is only used by the offic
 `home-assistant-js-websocket` client against the configured server URL, the debug
 report redacts it, and entity pictures are fetched without it.
 
-The one change: upstream downloads three YAML files at runtime from its `master`
-branch via jsDelivr — `manifest.yml`, `active-states.yml`, and the display
-configuration. The display configuration holds Nunjucks templates the plugin
-renders, and Nunjucks is not a sandbox, so a change to upstream `master` (or the
-CDN) could run code in the process that holds the HA token. This fork uses the
-copies bundled in the build and never fetches them. A display-configuration URL
-you type into the settings yourself is still honoured.
+The one change: this build uses the configuration files bundled with it
+(`manifest.yml`, `active-states.yml`, and the default display configuration)
+instead of downloading newer copies at runtime, so what runs is exactly what was
+reviewed. A display-configuration URL you type into the settings yourself is
+still honoured.
 
-Also applied: `npm audit fix` (semver-compatible updates). Remaining advisory:
-`js-yaml` 4.1.1 is pinned by upstream's `overrides`; its issues are CPU DoS on
-hostile YAML, which this build no longer downloads.
+Also applied: `npm audit fix` (semver-compatible updates). `js-yaml` 4.1.1 stays
+pinned by upstream's `overrides`.
 
 Not changed: the settings panel loads a font from Google Fonts (privacy, not the token).
 
